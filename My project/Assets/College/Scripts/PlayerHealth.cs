@@ -23,7 +23,6 @@ public class PlayerHealth : MonoBehaviour
     public delegate void HealthChangedDelegate(int current, int max);
     public event HealthChangedDelegate OnHealthChanged;
 
-    // Публичное свойство для доступа к текущему здоровью
     public int CurrentHealth => currentHealth;
     public bool IsDead => isDead;
 
@@ -31,8 +30,13 @@ public class PlayerHealth : MonoBehaviour
     {
         characterController = GetComponent<CharacterController>();
         currentHealth = maxHealth;
-        // Убедимся, что UI обновляется при старте
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
+
+        // Проверка наличия коллайдера
+        if (GetComponent<Collider>() == null)
+        {
+            Debug.LogError("Player is missing a Collider component!");
+        }
     }
 
     public void TakeDamage(int damage)
@@ -43,17 +47,15 @@ public class PlayerHealth : MonoBehaviour
             return;
         }
 
-        // Проверка на валидность урона
         if (damage <= 0)
         {
             Debug.LogWarning($"Invalid damage value: {damage}");
             return;
         }
 
-        currentHealth -= damage;
+        currentHealth = Mathf.Max(0, currentHealth - damage);
         Debug.Log($"Player took {damage} damage. Current health: {currentHealth}");
 
-        // Убедимся, что событие вызывается
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
 
         if (currentHealth <= 0)
@@ -75,6 +77,9 @@ public class PlayerHealth : MonoBehaviour
         FpsPlayerMovement movement = GetComponent<FpsPlayerMovement>();
         if (movement != null) movement.enabled = false;
 
+        PlayerShooting shooting = GetComponent<PlayerShooting>();
+        if (shooting != null) shooting.enabled = false;
+
         StartCoroutine(RespawnRoutine());
     }
 
@@ -95,11 +100,13 @@ public class PlayerHealth : MonoBehaviour
         isDead = false;
         Debug.Log("Player respawned!");
 
-        // Убедимся, что UI обновляется при респавне
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
 
         FpsPlayerMovement movement = GetComponent<FpsPlayerMovement>();
         if (movement != null) movement.enabled = true;
+
+        PlayerShooting shooting = GetComponent<PlayerShooting>();
+        if (shooting != null) shooting.enabled = true;
 
         OnRespawn?.Invoke();
     }

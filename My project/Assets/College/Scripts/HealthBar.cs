@@ -21,7 +21,6 @@ public class HealthBar : MonoBehaviour
 
     private void Start()
     {
-        // Автоматически находим игрока и подписываемся на события здоровья
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
@@ -44,7 +43,6 @@ public class HealthBar : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Отписываемся при уничтожении объекта
         if (playerHealth != null)
         {
             playerHealth.OnHealthChanged -= HandleHealthChanged;
@@ -53,6 +51,7 @@ public class HealthBar : MonoBehaviour
 
     private void HandleHealthChanged(int currentHealth, int maxHealth)
     {
+        Debug.Log($"Health changed: {currentHealth}/{maxHealth}");
         SetHealth(currentHealth);
     }
 
@@ -72,11 +71,7 @@ public class HealthBar : MonoBehaviour
 
     public void SetHealth(int health)
     {
-        if (slider == null)
-        {
-            Debug.LogError("Slider reference is missing!");
-            return;
-        }
+        if (slider == null) return;
 
         slider.value = health;
         UpdateColor();
@@ -85,11 +80,7 @@ public class HealthBar : MonoBehaviour
 
     private void UpdateColor()
     {
-        if (fillImage == null)
-        {
-            Debug.LogError("FillImage reference is missing!");
-            return;
-        }
+        if (fillImage == null) return;
 
         float percentage = slider.value / slider.maxValue;
 

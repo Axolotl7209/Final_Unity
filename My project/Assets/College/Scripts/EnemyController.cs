@@ -42,7 +42,7 @@ public class EnemyAI : MonoBehaviour
 
     [Header("Атака лучом")]
     [Min(0.1f)] public float attackRayDistance = 15f;
-    [Min(0.1f)] public float attackRayWidth = 0.5f;  // Увеличенная ширина для надежности
+    [Min(0.1f)] public float attackRayWidth = 0.5f;
     public LayerMask attackRayMask;
     public GameObject attackHitEffect;
     public Transform attackRayOrigin;
@@ -64,9 +64,10 @@ public class EnemyAI : MonoBehaviour
     private float lastTargetSeenTime;
     private float targetMemoryDuration = 4f;
     private PlayerHealth playerHealthComponent;
-    private bool isAttacking = false;  // Флаг для отслеживания состояния атаки
-    private float attackStartTime;     // Время начала атаки
-    private float attackAnimationTime = 0.5f; // Длительность анимации атаки
+    private bool isAttacking = false;
+    private float attackStartTime;
+    private float attackAnimationTime = 0.5f;
+    private GameObject playerGameObject; // Ссылка на игрока
 
     private void Awake()
     {
@@ -81,6 +82,21 @@ public class EnemyAI : MonoBehaviour
 
         attackRay = GetComponentInChildren<LineRenderer>();
         if (attackRay != null) attackRay.enabled = false;
+
+        // Находим игрока по тегу
+        playerGameObject = GameObject.FindGameObjectWithTag("Player");
+        if (playerGameObject != null)
+        {
+            playerHealthComponent = playerGameObject.GetComponent<PlayerHealth>();
+            if (playerHealthComponent == null)
+            {
+                Debug.LogError("PlayerHealth component not found on player object!");
+            }
+        }
+        else
+        {
+            Debug.LogError("Player not found in scene! Make sure it has 'Player' tag.");
+        }
     }
 
     private void Start()
@@ -100,14 +116,7 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("No valid patrol points assigned! Enemy will remain idle.", this);
-        }
-
-        // Находим компонент здоровья игрока
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
-        {
-            playerHealthComponent = player.GetComponent<PlayerHealth>();
+            Debug.LogWarning("No valid patrol points assigned! Enemy will remain idle.");
         }
     }
 
@@ -332,7 +341,6 @@ public class EnemyAI : MonoBehaviour
 
     private void SetState(State newState)
     {
-        // Выход из предыдущего состояния
         switch (currentState)
         {
             case State.Patrol:
@@ -351,7 +359,6 @@ public class EnemyAI : MonoBehaviour
                 break;
         }
 
-        // Вход в новое состояние
         currentState = newState;
 
         switch (newState)
@@ -365,7 +372,6 @@ public class EnemyAI : MonoBehaviour
                 break;
 
             case State.Attack:
-                // agent.isStopped будет установлен в UpdateAttackState
                 break;
         }
     }
@@ -407,12 +413,16 @@ public class EnemyAI : MonoBehaviour
     {
         if (playerTarget == null || playerHealthComponent == null)
         {
-            Debug.Log("Attack failed: player target missing");
+            Debug.Log("Attack failed: player target or health component missing");
             return;
         }
 
+        // Создаем луч от точки выстрела к игроку
         Vector3 attackDirection = (playerTarget.position - attackRayOrigin.position).normalized;
         float distanceToPlayer = Vector3.Distance(attackRayOrigin.position, playerTarget.position);
+
+        // Визуализация луча в сцене
+        Debug.DrawRay(attackRayOrigin.position, attackDirection * distanceToPlayer, Color.red, 2f);
 
         // Проверка попадания с помощью Raycast
         RaycastHit hit;
@@ -423,18 +433,21 @@ public class EnemyAI : MonoBehaviour
             distanceToPlayer,
             attackRayMask))
         {
-            Debug.DrawRay(attackRayOrigin.position, attackDirection * hit.distance, Color.red, 2f);
+            Debug.Log($"Hit object: {hit.collider.name}");
 
+            // Проверяем, попали ли мы в игрока
             if (hit.collider.CompareTag("Player"))
             {
+                // Наносим урон
                 playerHealthComponent.TakeDamage(attackDamage);
                 Debug.Log($"Player hit! Damage: {attackDamage}");
             }
             else
             {
-                Debug.Log($"Hit: {hit.collider.name}");
+                Debug.Log($"Hit obstacle: {hit.collider.name}");
             }
 
+            // Создаем эффект попадания
             if (attackHitEffect != null)
             {
                 Instantiate(attackHitEffect, hit.point, Quaternion.LookRotation(hit.normal));
@@ -442,8 +455,7 @@ public class EnemyAI : MonoBehaviour
         }
         else
         {
-            Debug.DrawRay(attackRayOrigin.position, attackDirection * distanceToPlayer, Color.green, 2f);
-            Debug.Log("Attack missed!");
+            Debug.Log("Attack missed! No collision detected.");
         }
     }
 
@@ -454,11 +466,9 @@ public class EnemyAI : MonoBehaviour
         attackRay.enabled = true;
         attackRay.SetPosition(0, attackRayOrigin.position);
 
-        Vector3 endPoint = attackRayOrigin.position + attackRayOrigin.forward * attackRayDistance;
-        if (playerTarget != null)
-        {
-            endPoint = playerTarget.position;
-        }
+        Vector3 endPoint = playerTarget != null ?
+            playerTarget.position :
+            attackRayOrigin.position + attackRayOrigin.forward * attackRayDistance;
 
         attackRay.SetPosition(1, endPoint);
 
