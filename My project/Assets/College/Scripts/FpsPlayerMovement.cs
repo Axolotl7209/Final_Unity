@@ -1,13 +1,12 @@
 using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(CharacterController), typeof(PlayerHealth))]
 public class FpsPlayerMovement : MonoBehaviour
 {
     [Header("Основные настройки")]
     [Tooltip("Скорость ходьбы персонажа")]
-    
-    public float walkSpeed = 6f; 
-    public void ResetSpeed() => walkSpeed = 6f; // базовое значение
+    public float walkSpeed = 6f;
+    public void ResetSpeed() => walkSpeed = 6f;
     [Tooltip("Скорость бега при удержании Shift")]
     [SerializeField] private float runSpeed = 12f;
 
@@ -24,15 +23,14 @@ public class FpsPlayerMovement : MonoBehaviour
     [Tooltip("Клавиша прыжка")]
     [SerializeField] private KeyCode jumpKey = KeyCode.Space;
 
-
     [Header("Порог чувствительности движения")]
     [Tooltip("Минимальное значение для распознавания движения")]
     [SerializeField, Min(0f)] private float moveDeadzone = 0.1f;
 
     private CharacterController controller;
     private Vector3 velocity;
+    private PlayerHealth playerHealth;
 
-   
     public bool IsMoving
     {
         get
@@ -43,14 +41,18 @@ public class FpsPlayerMovement : MonoBehaviour
     }
 
     public bool IsGrounded => controller != null && controller.isGrounded;
+    public bool IsDead => playerHealth != null && playerHealth.IsDead;
 
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
+        playerHealth = GetComponent<PlayerHealth>();
     }
 
     private void Update()
     {
+        if (playerHealth != null && playerHealth.IsDead) return;
+
         float speed = Input.GetKey(runKey) ? runSpeed : walkSpeed;
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
@@ -62,7 +64,9 @@ public class FpsPlayerMovement : MonoBehaviour
         {
             velocity.y = -1f;
             if (Input.GetKeyDown(jumpKey))
+            {
                 velocity.y = jumpForce;
+            }
         }
         else
         {
@@ -72,10 +76,8 @@ public class FpsPlayerMovement : MonoBehaviour
         controller.Move(velocity * Time.deltaTime);
     }
 
-  
     public Vector2 GetMoveInput()
     {
         return new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
     }
-
 }

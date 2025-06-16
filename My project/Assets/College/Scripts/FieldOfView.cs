@@ -1,107 +1,20 @@
 using UnityEngine;
-using UnityEngine.Events;
 
-public class FieldOfView : MonoBehaviour
+public class FieldOfViewVisualizer : MonoBehaviour
 {
-    [Header("Основные настройки")]
-    [SerializeField, Range(1, 50)] private float viewRadius = 10f;
-    [SerializeField, Range(0, 360)] private float viewAngle = 90f;
-    [SerializeField] private LayerMask obstacleMask;
-    [SerializeField] private LayerMask targetMask;
-    [SerializeField, Range(10, 100)] private int raycastQuality = 50;
+    [Header("Настройки")]
+    [Range(1, 50)] public float viewRadius = 10f;
+    [Range(0, 360)] public float viewAngle = 90f;
+    [Range(10, 100)] public int raycastQuality = 50;
 
-    [Header("События")]
-    public UnityEvent<Transform> OnTargetDetected;
-    public UnityEvent OnTargetLost;
-
-    [Header("Дебаг")]
-    [SerializeField] private bool drawGizmos = true;
-    [SerializeField] private Color gizmosColor = Color.yellow;
-    [SerializeField] private Color detectedColor = Color.red;
-    [SerializeField] private Color raycastHitColor = Color.green;
-    [SerializeField] private Color raycastMissColor = Color.gray;
-
-    public Transform VisibleTarget { get; private set; }
-    private bool hadTargetLastFrame = false;
-
-    private void Update()
-    {
-        ScanForTargets();
-        DebugCheck();
-    }
-
-    private void ScanForTargets()
-    {
-        Collider[] targetsInViewRadius = Physics.OverlapSphere(transform.position, viewRadius, targetMask);
-
-        Transform detected = null;
-        foreach (var targetCollider in targetsInViewRadius)
-        {
-            Transform target = targetCollider.transform;
-            Vector3 dirToTarget = (target.position - transform.position).normalized;
-            float angleToTarget = Vector3.Angle(transform.forward, dirToTarget);
-
-            if (angleToTarget < viewAngle / 2)
-            {
-                float dstToTarget = Vector3.Distance(transform.position, target.position);
-                RaycastHit hit;
-                // Луч ограничивается obstacleMask
-                if (Physics.Raycast(transform.position, dirToTarget, out hit, dstToTarget, obstacleMask))
-                {
-                    // Если луч задет препятствием, цель не видна
-                    if (hit.transform != target)
-                        continue;
-                }
-                detected = target;
-                break; // Берём первого увиденного
-            }
-        }
-
-        if (detected != VisibleTarget)
-        {
-            if (detected != null)
-            {
-                VisibleTarget = detected;
-                OnTargetDetected?.Invoke(VisibleTarget);
-            }
-            else if (VisibleTarget != null)
-            {
-                VisibleTarget = null;
-                OnTargetLost?.Invoke();
-            }
-        }
-    }
-
-    private void DebugCheck()
-    {
-        if (VisibleTarget != null && !hadTargetLastFrame)
-        {
-            Debug.Log($"Target detected: {VisibleTarget.name}", this);
-            hadTargetLastFrame = true;
-        }
-        else if (VisibleTarget == null && hadTargetLastFrame)
-        {
-            Debug.Log("Target lost", this);
-            hadTargetLastFrame = false;
-        }
-    }
+    [Header("Цвета")]
+    public Color gizmosColor = Color.yellow;
+    public Color detectedColor = Color.red;
+    public Color raycastHitColor = Color.green;
+    public Color raycastMissColor = Color.gray;
 
 #if UNITY_EDITOR
     private void OnDrawGizmosSelected()
-    {
-        if (!drawGizmos) return;
-
-        Gizmos.color = VisibleTarget != null ? detectedColor : gizmosColor;
-        DrawFieldOfView();
-
-        if (VisibleTarget != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawLine(transform.position, VisibleTarget.position);
-        }
-    }
-
-    private void DrawFieldOfView()
     {
         Vector3 origin = transform.position;
         float angleStep = viewAngle / raycastQuality;
@@ -115,7 +28,7 @@ public class FieldOfView : MonoBehaviour
             Vector3 point = origin + dir * viewRadius;
 
             RaycastHit hit;
-            if (Physics.Raycast(origin, dir, out hit, viewRadius, obstacleMask))
+            if (Physics.Raycast(origin, dir, out hit, viewRadius))
             {
                 Gizmos.color = raycastHitColor;
                 Gizmos.DrawLine(origin, hit.point);
